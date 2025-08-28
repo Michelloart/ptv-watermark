@@ -1,0 +1,8 @@
+{
+  "name": "ptv-watermark",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "sharp": "^0.33.3"
+  }
+}
