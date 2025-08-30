@@ -86,20 +86,28 @@ export default async function handler(req, res) {
       }
     }
 
-    const scaleNum = Math.max(0.05, Math.min(1, Number(scale) || 0.35));
-    const target = Math.max(24, Math.round(shorter * scaleNum));
+    // 4) uprav veľkosť loga (scale*kratšia strana)
+const scaleNum = Math.max(0.05, Math.min(1, Number(scale) || 0.35));
+const target = Math.max(24, Math.round(shorter * scaleNum));
 
-    const logoPrepared = await sharp(logoBuf)
-      .resize(target, target, { fit: "inside", withoutEnlargement: true })
-      .png()
-      .toBuffer();
+const logoPrepared = await sharp(logoBuf)
+  .resize(target, target, { fit: "inside", withoutEnlargement: true })
+  .ensureAlpha() // pridaj alfa kanál
+  .modulate({ opacity: Number(opacity) || 0.05 }) // zníž nepriehľadnosť
+  .png()
+  .toBuffer();
 
-    const opacityNum = Math.max(0, Math.min(1, Number(opacity) || 0.05));
+const outBuf = await baseImg
+  .composite([
+    {
+      input: logoPrepared,
+      gravity: "center",
+      blend: "over"
+    }
+  ])
+  .jpeg({ quality: 90 })
+  .toBuffer();
 
-    const outBuf = await baseImg
-      .composite([{ input: logoPrepared, gravity: "center", blend: "over", opacity: opacityNum }])
-      .jpeg({ quality: 90 })
-      .toBuffer();
 
     res.setHeader("Content-Type", "image/jpeg");
     res.setHeader("Cache-Control", "no-store");
@@ -109,3 +117,4 @@ export default async function handler(req, res) {
     res.status(500).json({ error: "Server error", message: String(err?.message || err) });
   }
 }
+
