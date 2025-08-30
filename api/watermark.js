@@ -86,14 +86,23 @@ export default async function handler(req, res) {
       }
     }
 
-    // 4) uprav veľkosť loga (scale*kratšia strana)
+// 4) uprav veľkosť loga (scale*kratšia strana)
 const scaleNum = Math.max(0.05, Math.min(1, Number(scale) || 0.35));
 const target = Math.max(24, Math.round(shorter * scaleNum));
 
-const logoPrepared = await sharp(logoBuf)
+const resizedLogo = await sharp(logoBuf)
   .resize(target, target, { fit: "inside", withoutEnlargement: true })
-  .ensureAlpha() // pridaj alfa kanál
-  .modulate({ opacity: Number(opacity) || 0.05 }) // zníž nepriehľadnosť
+  .png()
+  .toBuffer();
+
+// vytvor verziu s alfa kanálom podľa opacity
+const opacityNum = Math.max(0, Math.min(1, Number(opacity) || 0.05));
+const logoPrepared = await sharp(resizedLogo)
+  .ensureAlpha() // ak logo nemá alfa, pridá ju
+  .joinChannel(
+    Buffer.alloc(target * target, Math.round(opacityNum * 255)), // alfa kanál
+    { raw: { width: target, height: target, channels: 1 } }
+  )
   .png()
   .toBuffer();
 
@@ -109,6 +118,7 @@ const outBuf = await baseImg
   .toBuffer();
 
 
+
     res.setHeader("Content-Type", "image/jpeg");
     res.setHeader("Cache-Control", "no-store");
     res.status(200).send(outBuf);
@@ -117,4 +127,5 @@ const outBuf = await baseImg
     res.status(500).json({ error: "Server error", message: String(err?.message || err) });
   }
 }
+
 
